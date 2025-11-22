@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trig Converter / 三角學轉換</title>
+    <style>
+        :root {
+            --primary: #007bff;
+            --secondary: #dc3545;
+            --bg: #f4f4f9;
+            --panel: #ffffff;
+            --text: #333;
+        }
+        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); display: flex; flex-direction: column; align-items: center; padding: 20px; margin: 0; }
+        
+        /* Layout */
+        .main-container { display: flex; flex-wrap: wrap; gap: 20px; justify-content: center; max-width: 1200px; width: 100%; }
+        .panel { background: var(--panel); padding: 20px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+        .left-panel { flex: 1; min-width: 300px; max-width: 400px; }
+        .right-panel { flex: 2; min-width: 350px; display: flex; justify-content: center; align-items: center; flex-direction: column; }
+
+        /* Header & Lang Toggle */
+        header { width: 100%; max-width: 1200px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .lang-btn { background: #333; color: white; border: none; padding: 8px 16px; border-radius: 20px; cursor: pointer; font-weight: bold; }
+        .lang-btn:hover { background: #555; }
+
+        /* Button Groups */
+        .control-group { margin-bottom: 20px; }
+        .group-label { font-weight: bold; display: block; margin-bottom: 8px; font-size: 0.9rem; color: #666; }
+        .btn-row { display: flex; gap: 5px; flex-wrap: wrap; }
+        
+        .toggle-btn {
+            flex: 1; padding: 10px; border: 1px solid #ccc; background: #fff; cursor: pointer; border-radius: 5px; transition: 0.2s; font-weight: bold;
+        }
+        .toggle-btn.active { background: var(--primary); color: white; border-color: var(--primary); }
+        
+        /* Slider */
+        input[type=range] { width: 100%; margin: 15px 0; }
+
+        /* Math Display */
+        .result-box { background: #eef; border-left: 5px solid var(--primary); padding: 15px; margin-top: 20px; font-family: 'Courier New', monospace; font-size: 1.2rem; }
+        .explanation { margin-top: 10px; font-size: 0.95rem; line-height: 1.5; }
+        
+        /* Canvas */
+        canvas { background: white; border-radius: 50%; box-shadow: inset 0 0 20px rgba(0,0,0,0.05); cursor: crosshair; }
+
+        /* Colors for Text */
+        .blue { color: var(--primary); font-weight: bold; }
+        .red { color: var(--secondary); font-weight: bold; }
+    </style>
+</head>
+<body>
+
+<header>
+    <h2 id="appTitle">Trig Angle Conversion</h2>
+    <button class="lang-btn" onclick="toggleLang()">EN / 中文</button>
+</header>
+
+<div class="main-container">
+    
+    <div class="panel left-panel">
+        
+        <div class="control-group">
+            <span class="group-label" id="lblFunc">1. Select Function</span>
+            <div class="btn-row" id="groupFunc">
+                <button class="toggle-btn active" onclick="setMode('func', 'sin')">sin</button>
+                <button class="toggle-btn" onclick="setMode('func', 'cos')">cos</button>
+                <button class="toggle-btn" onclick="setMode('func', 'tan')">tan</button>
+            </div>
+        </div>
+
+        <div class="control-group">
+            <span class="group-label" id="lblBase">2. Base Axis</span>
+            <div class="btn-row" id="groupBase">
+                <button class="toggle-btn active" onclick="setMode('base', 0)">0°</button>
+                <button class="toggle-btn" onclick="setMode('base', 90)">90°</button>
+                <button class="toggle-btn" onclick="setMode('base', 180)">180°</button>
+                <button class="toggle-btn" onclick="setMode('base', 270)">270°</button>
+            </div>
+        </div>
+
+        <div class="control-group">
+            <span class="group-label" id="lblOp">3. Operation</span>
+            <div class="btn-row" id="groupSign">
+                <button class="toggle-btn" onclick="setMode('sign', 1)">+ θ</button>
+                <button class="toggle-btn active" onclick="setMode('sign', -1)">- θ</button>
+            </div>
+        </div>
+
+        <div class="control-group">
+            <span class="group-label"><span id="lblTheta">Angle</span> θ: <span id="thetaVal" class="blue">30</span>°</span>
+            <input type="range" id="slider" min="0" max="90" value="30">
+        </div>
+
+        <div class="result-box">
+            <div id="equationDisplay">sin(180° - θ) = sin(θ)</div>
+        </div>
+        <div class="explanation" id="explanationText">
+            Loading logic...
+        </div>
+
+    </div>
+
+    <div class="panel right-panel">
+        <canvas id="canvas" width="500" height="500"></canvas>
+    </div>
+
+</div>
+
+<script>
+    // --- STATE ---
+    let state = {
+        lang: 'en',
+        func: 'sin',
+        base: 180,  // 0, 90, 180, 270
+        sign: -1,   // 1 or -1
+        theta: 30
+    };
+
+    // --- TRANSLATIONS ---
+    const dict = {
+        en: {
+            title: "Trig Angle Conversion",
+            lblFunc: "1. Select Function",
+            lblBase: "2. Base Axis",
+            lblOp: "3. Operation",
+            lblTheta: "Angle",
+            quadrant: "Quadrant",
+            refAngle: "Reference Angle",
+            castRule: "CAST Rule",
+            congruence: "Congruence",
+            positive: "Positive",
+            negative: "Negative",
+            vertical: "Vertical (y)",
+            horizontal: "Horizontal (x)",
+            slope: "Slope",
+            expl_sign: "In this quadrant, the function is",
+            expl_change: "Change Function?",
+            yes_change: "Yes (Base is vertical axis 90/270)",
+            no_change: "No (Base is horizontal axis 0/180)",
+            result: "Therefore:"
+        },
+        zh: {
+            title: "三角學角度轉換",
+            lblFunc: "1. 選擇函數",
+            lblBase: "2. 基礎軸",
+            lblOp: "3. 運算",
+            lblTheta: "角度",
+            quadrant: "象限",
+            refAngle: "參考角",
+            castRule: "CAST 法則",
+            congruence: "全等三角形",
+            positive: "正數 (+)",
+            negative: "負數 (-)",
+            vertical: "垂直 (y)",
+            horizontal: "水平 (x)",
+            slope: "斜率 (Slope)",
+            expl_sign: "在此象限，該函數為",
+            expl_change: "轉換函數？",
+            yes_change: "是 (基礎軸為垂直軸 90/270)",
+            no_change: "否 (基礎軸為水平軸 0/180)",
+            result: "因此："
+        }
+    };
+
+    // --- DOM ELEMENTS ---
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+    const slider = document.getElementById('slider');
+
+    // --- INITIALIZATION ---
+    function init() {
+        slider.addEventListener('input', (e) => {
+            state.theta = parseInt(e.target.value);
+            document.getElementById('thetaVal').innerText = state.theta;
+            update();
+        });
+        // Set initial buttons based on state
+        updateBtnStyles();
+        update();
+    }
+
+    function toggleLang() {
+        state.lang = state.lang === 'en' ? 'zh' : 'en';
+        
+        // Update Text Labels
+        document.getElementById('appTitle').innerText = dict[state.lang].title;
+        document.getElementById('lblFunc').innerText = dict[state.lang].lblFunc;
+        document.getElementById('lblBase').innerText = dict[state.lang].lblBase;
+        document.getElementById('lblOp').innerText = dict[state.lang].lblOp;
+        document.getElementById('lblTheta').innerText = dict[state.lang].lblTheta;
+        
+        update(); // Refresh explanation text
+    }
+
+    function setMode(key, val) {
+        state[key] = val;
+        updateBtnStyles();
+        update();
+    }
+
+    function updateBtnStyles() {
+        // Helper to clear active class and set new one
+        const setActive = (groupId, val) => {
+            const container = document.getElementById(groupId);
+            const btns = container.getElementsByTagName('button');
+            for(let btn of btns) {
+                // Match value based on text or onclick attribute logic (simplified here)
+                // We just re-render buttons or manually manage logic. 
+                // For simplicity in this snippet, checking onclick string:
+                if(btn.getAttribute('onclick').includes(`'${val}'`) || btn.getAttribute('onclick').includes(`(${val})`)) {
+                    btn.classList.add('active');
+                } else {
+                    btn.classList.remove('active');
+                }
+            }
+        };
+        setActive('groupFunc', state.func);
+        setActive('groupBase', state.base);
+        setActive('groupSign', state.sign);
+    }
+
+    // --- MATH LOGIC ---
+    function toRad(deg) { return deg * Math.PI / 180; }
+
+    function getQuadrant(angle) {
+        // Normalize 0-360
+        let a = angle % 360;
+        if (a < 0) a += 360;
+        if (a >= 0 && a < 90) return 1;
+        if (a >= 90 && a < 180) return 2;
+        if (a >= 180 && a < 270) return 3;
+        return 4;
+    }
+
+    function getFunctionSign(func, quad) {
+        // CAST rule
+        // Q1: All +
+        // Q2: Sin +
+        // Q3: Tan +
+        // Q4: Cos +
+        if (quad === 1) return 1;
+        if (quad === 2) return func === 'sin' ? 1 : -1;
+        if (quad === 3) return func === 'tan' ? 1 : -1;
+        if (quad === 4) return func === 'cos' ? 1 : -1;
+        return 1;
+    }
+
+    // --- DRAWING ---
+    function update() {
+        const W = canvas.width;
+        const H = canvas.height;
+        const CX = W/2;
+        const CY = H/2;
+        const R = 180;
+        
+        ctx.clearRect(0, 0, W, H);
+
+        // 1. Draw Grid & CAST
+        ctx.beginPath(); ctx.strokeStyle = "#ddd"; ctx.lineWidth = 1;
+        ctx.moveTo(CX, 0); ctx.lineTo(CX, H);
+        ctx.moveTo(0, CY); ctx.lineTo(W, CY);
+        ctx.stroke();
+
+        ctx.font = "bold 60px Arial"; ctx.fillStyle = "#f3f3f3"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+        ctx.fillText("S", CX - 100, CY - 100);
+        ctx.fillText("A", CX + 100, CY - 100);
+        ctx.fillText("T", CX - 100, CY + 100);
+        ctx.fillText("C", CX + 100, CY + 100);
+
+        ctx.beginPath(); ctx.strokeStyle = "#333"; ctx.lineWidth = 2;
+        ctx.arc(CX, CY, R, 0, Math.PI*2);
+        ctx.stroke();
+
+        // 2. Calculate Angles
+        let thetaDeg = state.theta;
+        let targetDeg = state.base + (state.sign * thetaDeg);
+        
+        // Normalize target for drawing
+        let normTarget = targetDeg % 360;
+        if (normTarget < 0) normTarget += 360;
+
+        // 3. Draw Reference Triangle (Theta) - BLUE
+        // Always draw theta in Q1 for visual reference, or relative to x-axis?
+        // Standard is to show theta as input in Q1.
+        drawTriangle(CX, CY, R, thetaDeg, '#007bff', 'θ');
+
+        // 4. Draw Target Triangle - RED
+        drawTriangle(CX, CY, R, normTarget, '#dc3545', 'Result');
+
+        // 5. Draw Angle Arcs (Labels)
+        drawAngleArc(CX, CY, R, normTarget, targetDeg);
+
+        // 6. Text Logic
+        solveIdentity(targetDeg, thetaDeg);
+    }
+
+    function drawTriangle(cx, cy, r, deg, color, label) {
+        let rad = toRad(deg);
+        let px = cx + r * Math.cos(rad);
+        let py = cy - r * Math.sin(rad); // Canvas Y inverted
+
+        ctx.beginPath(); ctx.strokeStyle = color; ctx.lineWidth = 3;
+        ctx.moveTo(cx, cy); ctx.lineTo(px, py); ctx.stroke(); // Hypotenuse
+
+        // Legs
+        ctx.setLineDash([4, 4]); ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.moveTo(px, py); ctx.lineTo(px, cy); ctx.stroke(); // Vertical
+        ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(px, cy); ctx.stroke(); // Horizontal
+        ctx.setLineDash([]);
+
+        // Dot
+        ctx.beginPath(); ctx.fillStyle = color; ctx.arc(px, py, 5, 0, Math.PI*2); ctx.fill();
+    }
+
+    function drawAngleArc(cx, cy, r, normDeg, rawDeg) {
+        // Draw arc from 0 to angle
+        let rad = toRad(normDeg);
+        ctx.beginPath();
+        ctx.strokeStyle = "#dc3545";
+        ctx.lineWidth = 2;
+        
+        // Canvas Arc takes (x, y, r, start, end). 
+        // Note: Canvas angles go Clockwise for positive if not careful, 
+        // but usually 0 is right, Math.PI/2 is down. We need counter-clockwise (Math definition).
+        // Simplest: Use counterclockwise flag = true, start = 0, end = -rad
+        ctx.arc(cx, cy, 40, 0, -rad, true); 
+        ctx.stroke();
+
+        // Label position
+        let midRad = -rad / 2;
+        let lx = cx + 60 * Math.cos(midRad);
+        let ly = cy + 60 * Math.sin(midRad);
+        
+        ctx.font = "14px Arial";
+        ctx.fillStyle = "#dc3545";
+        // Handle text alignment
+        ctx.fillText(`${rawDeg}°`, lx, ly);
+    }
+
+    function solveIdentity(targetTotal, theta) {
+        const t = dict[state.lang];
+        let quad = getQuadrant(targetTotal);
+        let signVal = getFunctionSign(state.func, quad);
+        let signStr = signVal === 1 ? "+" : "-";
+        
+        // Determine Change
+        let changes = (state.base === 90 || state.base === 270);
+        let resultFunc = state.func;
+
+        if (changes) {
+            if (state.func === 'sin') resultFunc = 'cos';
+            else if (state.func === 'cos') resultFunc = 'sin';
+            else if (state.func === 'tan') resultFunc = 'cot';
+        }
+
+        // Equation String
+        let opSymbol = state.sign === 1 ? "+" : "-";
+        let eqLeft = `${state.func}(${state.base}° ${opSymbol} θ)`;
+        let eqRight = `${signStr}${resultFunc}(θ)`;
+        
+        if (resultFunc === 'cot' && state.lang === 'zh') eqRight = `${signStr}${resultFunc}(θ) [1/tan]`;
+
+        document.getElementById('equationDisplay').innerHTML = `
+            <span class="blue">${eqLeft}</span> = <span class="red">${eqRight}</span>
+        `;
+
+        // Explanation
+        let signWord = signVal === 1 ? t.positive : t.negative;
+        let changeReason = changes ? t.yes_change : t.no_change;
+        
+        document.getElementById('explanationText').innerHTML = `
+            <strong>1. ${t.quadrant}:</strong> Target is in Q${quad} (${t.castRule}).<br>
+            ${t.expl_sign} <strong>${signWord}</strong>.<br>
+            <strong>2. Function:</strong> ${t.expl_change} <br>
+            ${changeReason}.
+        `;
+    }
+
+    // Start
+    init();
+
+</script>
+
+</body>
+</html>
