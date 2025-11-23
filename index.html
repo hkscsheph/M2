@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Trig Converter / 三角學轉換</title>
+    <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
     <style>
         :root {
             --primary: #007bff;
@@ -39,7 +41,7 @@
         input[type=range] { width: 100%; margin: 15px 0; }
 
         /* Math Display */
-        .result-box { background: #eef; border-left: 5px solid var(--primary); padding: 15px; margin-top: 20px; font-family: 'Courier New', monospace; font-size: 1.2rem; }
+        .result-box { background: #eef; border-left: 5px solid var(--primary); padding: 15px; margin-top: 20px; font-size: 1.2rem; }
         .explanation { margin-top: 10px; font-size: 0.95rem; line-height: 1.5; }
         
         /* Canvas */
@@ -89,7 +91,7 @@
         </div>
 
         <div class="control-group">
-            <span class="group-label"><span id="lblTheta">Angle</span> θ: <span id="thetaVal" class="blue">30</span>°</span>
+            <span class="group-label"><span id="lblTheta">Angle</span> \(\theta\): <span id="thetaVal" class="blue">30</span>°</span>
             <input type="range" id="slider" min="0" max="90" value="30">
         </div>
 
@@ -355,16 +357,21 @@
             else if (state.func === 'tan') resultFunc = 'cot';
         }
 
-        // Equation String
+        // Equation String with MathJax
         let opSymbol = state.sign === 1 ? "+" : "-";
-        let eqLeft = `${state.func}(${state.base}° ${opSymbol} θ)`;
-        let eqRight = `${signStr}${resultFunc}(θ)`;
-        
-        if (resultFunc === 'cot' && state.lang === 'zh') eqRight = `${signStr}${resultFunc}(θ) [1/tan]`;
+        let funcTeX = state.func === 'tan' ? '\\tan' : `\\${state.func}`;
+        let resultFuncTeX = resultFunc === 'tan' ? '\\tan' : (resultFunc === 'cot' ? '\\cot' : `\\${resultFunc}`);
+
+        let eqLeft = `${funcTeX}(${state.base}^\\circ ${opSymbol} \\theta)`;
+        let eqRight = `${signStr}${resultFuncTeX}(\\theta)`;
 
         document.getElementById('equationDisplay').innerHTML = `
-            <span class="blue">${eqLeft}</span> = <span class="red">${eqRight}</span>
+            \\[\\class{blue}{${eqLeft}} = \\class{red}{${eqRight}}\\]
         `;
+
+        if (window.MathJax) {
+            MathJax.typesetPromise([document.getElementById('equationDisplay')]);
+        }
 
         // Explanation
         let signWord = signVal === 1 ? t.positive : t.negative;
