@@ -45,7 +45,21 @@
         .explanation { margin-top: 10px; font-size: 0.95rem; line-height: 1.5; }
         
         /* Canvas */
-        canvas { background: white; border-radius: 50%; box-shadow: inset 0 0 20px rgba(0,0,0,0.05); cursor: crosshair; }
+        .canvas-container { width: 100%; max-width: 600px; aspect-ratio: 1; display: flex; justify-content: center; align-items: center; }
+        canvas { width: 100%; height: 100%; background: white; border-radius: 50%; box-shadow: inset 0 0 20px rgba(0,0,0,0.05); cursor: crosshair; display: block; }
+
+        @media (max-width: 768px) {
+            .main-container { gap: 15px; }
+            .left-panel { max-width: 100%; min-width: 100%; }
+            .right-panel { min-width: 100%; max-width: 100%; }
+            .canvas-container { max-width: 400px; }
+        }
+
+        @media (max-width: 480px) {
+            body { padding: 10px; }
+            .panel { padding: 15px; }
+            .canvas-container { max-width: 300px; }
+        }
 
         /* Colors for Text */
         .blue { color: var(--primary); font-weight: bold; }
@@ -105,7 +119,9 @@
     </div>
 
     <div class="panel right-panel">
-        <canvas id="canvas" width="500" height="500"></canvas>
+        <div class="canvas-container">
+            <canvas id="canvas"></canvas>
+        </div>
     </div>
 
 </div>
@@ -170,16 +186,33 @@
     const canvas = document.getElementById('canvas');
     const ctx = canvas.getContext('2d');
     const slider = document.getElementById('slider');
+    const container = canvas.parentElement;
+    let dpr = window.devicePixelRatio || 1;
 
     // --- INITIALIZATION ---
     function init() {
+        resizeCanvas();
+        window.addEventListener('resize', resizeCanvas);
+
         slider.addEventListener('input', (e) => {
             state.theta = parseInt(e.target.value);
             document.getElementById('thetaVal').innerText = state.theta;
             update();
         });
-        // Set initial buttons based on state
         updateBtnStyles();
+        update();
+    }
+
+    function resizeCanvas() {
+        const rect = container.getBoundingClientRect();
+        const size = Math.min(rect.width, rect.height);
+
+        canvas.width = size * dpr;
+        canvas.height = size * dpr;
+        canvas.style.width = size + 'px';
+        canvas.style.height = size + 'px';
+
+        ctx.scale(dpr, dpr);
         update();
     }
 
@@ -251,11 +284,11 @@
 
     // --- DRAWING ---
     function update() {
-        const W = canvas.width;
-        const H = canvas.height;
+        const W = canvas.width / dpr;
+        const H = canvas.height / dpr;
         const CX = W/2;
         const CY = H/2;
-        const R = 180;
+        const R = Math.min(W, H) * 0.35;
         
         ctx.clearRect(0, 0, W, H);
 
@@ -265,11 +298,16 @@
         ctx.moveTo(0, CY); ctx.lineTo(W, CY);
         ctx.stroke();
 
-        ctx.font = "bold 60px Arial"; ctx.fillStyle = "#f3f3f3"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
-        ctx.fillText("S", CX - 100, CY - 100);
-        ctx.fillText("A", CX + 100, CY - 100);
-        ctx.fillText("T", CX - 100, CY + 100);
-        ctx.fillText("C", CX + 100, CY + 100);
+        const fontSize = Math.max(40, Math.min(60, W * 0.12));
+        ctx.font = `bold ${fontSize}px Arial`;
+        ctx.fillStyle = "#f3f3f3";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        const offset = R * 0.6;
+        ctx.fillText("S", CX - offset, CY - offset);
+        ctx.fillText("A", CX + offset, CY - offset);
+        ctx.fillText("T", CX - offset, CY + offset);
+        ctx.fillText("C", CX + offset, CY + offset);
 
         ctx.beginPath(); ctx.strokeStyle = "#333"; ctx.lineWidth = 2;
         ctx.arc(CX, CY, R, 0, Math.PI*2);
@@ -332,12 +370,15 @@
 
         // Label position
         let midRad = -rad / 2;
-        let lx = cx + 60 * Math.cos(midRad);
-        let ly = cy + 60 * Math.sin(midRad);
-        
-        ctx.font = "14px Arial";
+        let labelDist = Math.min(canvas.width, canvas.height) * 0.08;
+        let lx = cx + labelDist * Math.cos(midRad);
+        let ly = cy + labelDist * Math.sin(midRad);
+
+        const labelFontSize = Math.max(12, Math.min(16, Math.min(canvas.width, canvas.height) * 0.04));
+        ctx.font = `${labelFontSize}px Arial`;
         ctx.fillStyle = "#dc3545";
-        // Handle text alignment
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
         ctx.fillText(`${rawDeg}°`, lx, ly);
     }
 
